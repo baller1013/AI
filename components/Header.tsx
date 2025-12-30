@@ -6,7 +6,7 @@ interface HeaderProps {
   setRole: (role: Role) => void;
 }
 
-const ADMIN_CLICK_THRESHOLD = 2;
+const ADMIN_CLICK_THRESHOLD = 3;
 const CLICK_TIMEOUT_MS = 300;
 
 const Header: React.FC<HeaderProps> = ({ role, setRole }) => {
