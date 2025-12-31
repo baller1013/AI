@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import { INITIAL_CLASSES } from './constants';
+import { collection, getDocs, doc, setDoc, addDoc, getDoc, deleteDoc } from "firebase/firestore";
+import { db } from "./firebase";
 import type { ClassInfo, Role, Child } from './types';
 import Header from './components/Header';
 import ClassCard from './components/ClassCard';
 import AdminRosterView from './components/AdminRosterView';
 import AdminLogin from './components/AdminLogin';
+import { PaintBrushIcon, MusicNoteIcon, BookOpenIcon, BeakerIcon, AGE_RANGE_OPTIONS, PERIOD_OPTIONS } from './constants';
 
 const App: React.FC = () => {
   const [role, setRole] = useState<Role>('user');
@@ -13,8 +15,73 @@ const App: React.FC = () => {
   const [masterRegistrations, setMasterRegistrations] = useState<Record<string, Child[]>>({});
   const [currentUserRegistrations, setCurrentUserRegistrations] = useState<Record<string, Child[]>>({});
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [classes, setClasses] = useState<ClassInfo[]>(INITIAL_CLASSES);
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ClassInfo, direction: 'asc' | 'desc' }>({ key: 'ageRange', direction: 'asc' });
+
+  useEffect(() => {
+    const fetchData = async () => {
+        const classesQuerySnapshot = await getDocs(collection(db, "classes"));
+        const classesData = classesQuerySnapshot.docs.map(doc => {
+            const data = doc.data();
+            let icon;
+            switch (data.icon) {
+                case 'PaintBrushIcon': icon = PaintBrushIcon; break;
+                case 'MusicNoteIcon': icon = MusicNoteIcon; break;
+                case 'BookOpenIcon': icon = BookOpenIcon; break;
+                case 'BeakerIcon':
+                default: icon = BeakerIcon;
+            }
+            return {
+                id: doc.id,
+                name: data.name || 'Unnamed Class',
+                description: data.description || '',
+                ageRange: data.ageRange || '',
+                period: data.period || '1st',
+                icon: icon,
+                instructor: data.instructor || '',
+            } as ClassInfo;
+        });
+        setClasses(classesData);
+
+        const registrationsQuerySnapshot = await getDocs(collection(db, "registrations"));
+        const registrationsData: Record<string, Child[]> = {};
+        registrationsQuerySnapshot.forEach(doc => {
+            registrationsData[doc.id] = doc.data().children || [];
+        });
+        setMasterRegistrations(registrationsData);
+    };
+
+    fetchData();
+}, []);
+
+  const sortedClasses = useMemo(() => {
+    const sortableClasses = [...classes];
+    sortableClasses.sort((a, b) => {
+        let aValue, bValue;
+
+        if (sortConfig.key === 'ageRange') {
+            aValue = AGE_RANGE_OPTIONS.indexOf(a.ageRange);
+            bValue = AGE_RANGE_OPTIONS.indexOf(b.ageRange);
+        } else if (sortConfig.key === 'period') {
+            aValue = PERIOD_OPTIONS.indexOf(a.period);
+            bValue = PERIOD_OPTIONS.indexOf(b.period);
+        } else {
+            aValue = a[sortConfig.key];
+            bValue = b[sortConfig.key];
+        }
+
+        if (aValue < bValue) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+    return sortableClasses;
+  }, [classes, sortConfig]);
+
 
   useEffect(() => {
     const childPeriodMap = new Map<string, { period: string; child: Child }>();
@@ -46,36 +113,119 @@ const App: React.FC = () => {
     setCurrentUserRegistrations(prev => ({ ...prev, [classId]: children }));
   };
 
-  const handleMasterRegistrationChange = (classId: string, children: Child[]) => {
+  const handleMasterRegistrationChange = async (classId: string, children: Child[]) => {
     setMasterRegistrations(prev => ({...prev, [classId]: children}));
+    try {
+      const registrationRef = doc(db, "registrations", classId);
+      await setDoc(registrationRef, { children }, { merge: true });
+    } catch (error) {
+      console.error("Error updating registration: ", error);
+    }
   }
 
-  const handleClassInfoChange = (classId: string, field: 'name' | 'description' | 'ageRange' | 'period', value: string) => {
-    setClasses(prevClasses =>
-      prevClasses.map(c =>
+  const handleClassInfoChange = async (classId: string, field: keyof Omit<ClassInfo, 'id' | 'icon'>, value: string) => {
+    const newClasses = classes.map(c =>
         c.id === classId ? { ...c, [field]: value } : c
-      )
     );
+    setClasses(newClasses);
+
+    try {
+        const classRef = doc(db, "classes", classId);
+        await setDoc(classRef, { [field]: value }, { merge: true });
+    } catch (error) {
+        console.error("Error updating class info: ", error);
+    }
+  };
+  
+  const handleAddNewClass = async () => {
+    const tempId = `temp-${Date.now()}`;
+    const newClassData = {
+        name: 'New Class Name',
+        description: 'Enter a description for the new class.',
+        ageRange: 'Grades K-2',
+        period: '1st' as const,
+        iconName: 'BeakerIcon',
+        instructor: '',
+    };
+
+    const newClassForUI: ClassInfo = {
+        id: tempId,
+        name: newClassData.name,
+        description: newClassData.description,
+        ageRange: newClassData.ageRange,
+        period: newClassData.period,
+        icon: BeakerIcon,
+        instructor: newClassData.instructor,
+    };
+
+    setClasses(prevClasses => [newClassForUI, ...prevClasses]);
+
+    try {
+        const docRef = await addDoc(collection(db, "classes"), newClassData);
+        setClasses(prevClasses =>
+            prevClasses.map(c => (c.id === tempId ? { ...c, id: docRef.id } : c))
+        );
+    } catch (error) {
+        console.error("Error adding new class: ", error);
+        setClasses(prevClasses => prevClasses.filter(c => c.id !== tempId));
+        alert("Failed to add the new class. Please check your Firestore security rules and try again.");
+    }
   };
 
-  const handleSubmit = () => {
-    setMasterRegistrations(prevMaster => {
-      const newMaster = { ...prevMaster };
-      Object.entries(currentUserRegistrations).forEach(([classId, newChildren]) => {
-        const existingChildren = newMaster[classId] || [];
-        const existingNames = new Set(
-          existingChildren.map(c => `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`)
-        );
-        
-        const uniqueNewChildren = newChildren.filter(c => {
-          const fullNameKey = `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`;
-          return c.firstName.trim() && c.lastName.trim() && !existingNames.has(fullNameKey);
+  const handleDeleteClass = async (classId: string) => {
+    const originalClasses = classes;
+    setClasses(prevClasses => prevClasses.filter(c => c.id !== classId));
+
+    try {
+        await deleteDoc(doc(db, "classes", classId));
+        await deleteDoc(doc(db, "registrations", classId));
+        setMasterRegistrations(prev => {
+            const newMaster = { ...prev };
+            delete newMaster[classId];
+            return newMaster;
         });
-        
-        newMaster[classId] = [...existingChildren, ...uniqueNewChildren];
-      });
-      return newMaster;
+
+    } catch (error) {
+        console.error("Error deleting class: ", error);
+        setClasses(originalClasses);
+        alert("Failed to delete the class. Please check your Firestore security rules and try again.");
+    }
+  };
+
+
+  const handleSubmit = async () => {
+    for (const [classId, newChildren] of Object.entries(currentUserRegistrations)) {
+        if (newChildren.some(c => c.firstName.trim() && c.lastName.trim())) {
+            const registrationRef = doc(db, "registrations", classId);
+            const docSnap = await getDoc(registrationRef);
+            const existingChildren = docSnap.exists() ? docSnap.data().children || [] : [];
+            const existingNames = new Set(existingChildren.map(c => `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`));
+            
+            const uniqueNewChildren = newChildren.filter(c => {
+                const fullNameKey = `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`;
+                return c.firstName.trim() && c.lastName.trim() && !existingNames.has(fullNameKey);
+            });
+
+            if (uniqueNewChildren.length > 0) {
+                await setDoc(registrationRef, { children: [...existingChildren, ...uniqueNewChildren] }, { merge: true });
+            }
+        }
+    }
+    
+    setMasterRegistrations(prevMaster => {
+        const newMaster = { ...prevMaster };
+        Object.entries(currentUserRegistrations).forEach(([classId, newChildren]) => {
+            const existingChildren = newMaster[classId] || [];
+            const existingNames = new Set(existingChildren.map(c => `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`));
+            const uniqueNewChildren = newChildren.filter(c => {
+                const fullNameKey = `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`;
+                return c.firstName.trim() && c.lastName.trim() && !existingNames.has(fullNameKey);
+            });
+            newMaster[classId] = [...existingChildren, ...uniqueNewChildren];
+        });
+        return newMaster;
     });
+
     setIsSubmitted(true);
   };
 
@@ -115,7 +265,7 @@ const App: React.FC = () => {
       const validChildren = children.filter(c => c.firstName.trim() || c.lastName.trim());
       if (!classInfo || validChildren.length === 0) return;
 
-      if (yPosition > 270) { // Simple page break
+      if (yPosition > 270) { 
           doc.addPage();
           yPosition = 20;
       }
@@ -131,10 +281,18 @@ const App: React.FC = () => {
           doc.text(`- ${child.firstName} ${child.lastName}`, 25, yPosition);
           yPosition += 7;
       });
-      yPosition += 5; // Add a little space between classes
+      yPosition += 5; 
     });
 
     doc.save("registration-summary.pdf");
+  };
+
+  const requestSort = (key: keyof ClassInfo) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
   return (
@@ -145,10 +303,23 @@ const App: React.FC = () => {
           <>
             {!isSubmitted ? (
               <div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">Class Registration</h1>
-                <p className="text-slate-600 mb-8">Enter the name of your child or children for each class below.</p>
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                      <h1 className="text-3xl font-bold text-slate-900 mb-2">Class Registration</h1>
+                      <p className="text-slate-600">Enter the name of your child or children for each class below.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                        <span className="text-sm font-semibold text-slate-600">Sort by:</span>
+                        <button onClick={() => requestSort('ageRange')} className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm ${sortConfig.key === 'ageRange' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'} transition-colors`}>
+                            Age Group {sortConfig.key === 'ageRange' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                        </button>
+                        <button onClick={() => requestSort('period')} className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm ${sortConfig.key === 'period' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'} transition-colors`}>
+                            Period {sortConfig.key === 'period' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                        </button>
+                    </div>
+                </div>
                 <div className="space-y-6">
-                  {classes.map((classInfo) => (
+                  {sortedClasses.map((classInfo) => (
                     <ClassCard
                       key={classInfo.id}
                       classInfo={classInfo}
@@ -233,8 +404,18 @@ const App: React.FC = () => {
             ) : (
               <div>
                 <div className="mb-12">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Edit Registrations</h1>
-                    <p className="text-slate-600 mb-8">Modify class details and the list of registered children. Changes are saved automatically.</p>
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-900 mb-2">Edit Classes</h1>
+                            <p className="text-slate-600">Modify class details and registered children. Changes are saved automatically.</p>
+                        </div>
+                        <button
+                            onClick={handleAddNewClass}
+                            className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 whitespace-nowrap"
+                        >
+                            Add New Class
+                        </button>
+                    </div>
                     <div className="space-y-6">
                        {classes.map((classInfo) => (
                         <ClassCard
@@ -245,6 +426,7 @@ const App: React.FC = () => {
                           isReadOnly={false}
                           isClassInfoEditable={true}
                           onClassInfoChange={handleClassInfoChange}
+                          onDelete={() => handleDeleteClass(classInfo.id)}
                         />
                       ))}
                     </div>
