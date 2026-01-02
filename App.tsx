@@ -9,6 +9,12 @@ import AdminRosterView from './components/AdminRosterView';
 import AdminLogin from './components/AdminLogin';
 import { PaintBrushIcon, MusicNoteIcon, BookOpenIcon, BeakerIcon, AGE_RANGE_OPTIONS, PERIOD_OPTIONS } from './constants';
 
+const toProperCase = (str: string): string => {
+  return str.replace(/\w\S*/g, (txt) => {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+};
+
 const App: React.FC = () => {
   const [role, setRole] = useState<Role>('user');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
@@ -42,6 +48,7 @@ const App: React.FC = () => {
                 instructor: data.instructor || '',
             } as ClassInfo;
         });
+        classesData.sort((a, b) => b.id.localeCompare(a.id));
         setClasses(classesData);
 
         const registrationsQuerySnapshot = await getDocs(collection(db, "registrations"));
@@ -53,7 +60,7 @@ const App: React.FC = () => {
     };
 
     fetchData();
-}, []);
+  }, []);
 
   const sortedClasses = useMemo(() => {
     const sortableClasses = [...classes];
@@ -82,7 +89,6 @@ const App: React.FC = () => {
     return sortableClasses;
   }, [classes, sortConfig]);
 
-
   useEffect(() => {
     const childPeriodMap = new Map<string, { period: string; child: Child }>();
     let error: string | null = null;
@@ -98,7 +104,7 @@ const App: React.FC = () => {
         if (childPeriodMap.has(fullName)) {
           const existingRegistration = childPeriodMap.get(fullName)!;
           if (existingRegistration.period === currentClass.period) {
-            error = `Error: ${existingRegistration.child.firstName} ${existingRegistration.child.lastName} is registered for multiple classes in the ${currentClass.period} period.`;
+            error = `Error: ${toProperCase(child.firstName)} ${toProperCase(child.lastName)} is registered for multiple classes in the ${currentClass.period} period.`;
             break;
           }
         }
@@ -114,24 +120,33 @@ const App: React.FC = () => {
   };
 
   const handleMasterRegistrationChange = async (classId: string, children: Child[]) => {
-    setMasterRegistrations(prev => ({...prev, [classId]: children}));
+    const formattedChildren = children.map(child => ({
+        ...child,
+        firstName: toProperCase(child.firstName.trim()),
+        lastName: toProperCase(child.lastName.trim())
+    }));
+
+    setMasterRegistrations(prev => ({...prev, [classId]: formattedChildren}));
+
     try {
       const registrationRef = doc(db, "registrations", classId);
-      await setDoc(registrationRef, { children }, { merge: true });
+      const validChildren = formattedChildren.filter(c => c.firstName && c.lastName);
+      await setDoc(registrationRef, { children: validChildren }, { merge: true });
     } catch (error) {
       console.error("Error updating registration: ", error);
     }
   }
 
   const handleClassInfoChange = async (classId: string, field: keyof Omit<ClassInfo, 'id' | 'icon'>, value: string) => {
+    const processedValue = field === 'instructor' ? toProperCase(value) : value;
     const newClasses = classes.map(c =>
-        c.id === classId ? { ...c, [field]: value } : c
+        c.id === classId ? { ...c, [field]: processedValue } : c
     );
     setClasses(newClasses);
 
     try {
         const classRef = doc(db, "classes", classId);
-        await setDoc(classRef, { [field]: value }, { merge: true });
+        await setDoc(classRef, { [field]: processedValue }, { merge: true });
     } catch (error) {
         console.error("Error updating class info: ", error);
     }
@@ -162,9 +177,13 @@ const App: React.FC = () => {
 
     try {
         const docRef = await addDoc(collection(db, "classes"), newClassData);
-        setClasses(prevClasses =>
-            prevClasses.map(c => (c.id === tempId ? { ...c, id: docRef.id } : c))
-        );
+        
+        setClasses(prevClasses => {
+            const updatedClasses = prevClasses.map(c => (c.id === tempId ? { ...c, id: docRef.id } : c));
+            updatedClasses.sort((a, b) => b.id.localeCompare(a.id));
+            return updatedClasses;
+        });
+
     } catch (error) {
         console.error("Error adding new class: ", error);
         setClasses(prevClasses => prevClasses.filter(c => c.id !== tempId));
@@ -192,7 +211,6 @@ const App: React.FC = () => {
     }
   };
 
-
   const handleSubmit = async () => {
     for (const [classId, newChildren] of Object.entries(currentUserRegistrations)) {
         if (newChildren.some(c => c.firstName.trim() && c.lastName.trim())) {
@@ -201,9 +219,15 @@ const App: React.FC = () => {
             const existingChildren = docSnap.exists() ? docSnap.data().children || [] : [];
             const existingNames = new Set(existingChildren.map(c => `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`));
             
-            const uniqueNewChildren = newChildren.filter(c => {
-                const fullNameKey = `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`;
-                return c.firstName.trim() && c.lastName.trim() && !existingNames.has(fullNameKey);
+            const formattedChildren = newChildren.map(child => ({
+                ...child,
+                firstName: toProperCase(child.firstName.trim()),
+                lastName: toProperCase(child.lastName.trim())
+            }));
+
+            const uniqueNewChildren = formattedChildren.filter(c => {
+                const fullNameKey = `${c.firstName.toLowerCase()}|${c.lastName.toLowerCase()}`;
+                return c.firstName && c.lastName && !existingNames.has(fullNameKey);
             });
 
             if (uniqueNewChildren.length > 0) {
@@ -217,11 +241,20 @@ const App: React.FC = () => {
         Object.entries(currentUserRegistrations).forEach(([classId, newChildren]) => {
             const existingChildren = newMaster[classId] || [];
             const existingNames = new Set(existingChildren.map(c => `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`));
-            const uniqueNewChildren = newChildren.filter(c => {
-                const fullNameKey = `${c.firstName.trim().toLowerCase()}|${c.lastName.trim().toLowerCase()}`;
-                return c.firstName.trim() && c.lastName.trim() && !existingNames.has(fullNameKey);
+            
+            const formattedChildren = newChildren.map(child => ({
+                ...child,
+                firstName: toProperCase(child.firstName.trim()),
+                lastName: toProperCase(child.lastName.trim())
+            }));
+
+            const uniqueNewChildren = formattedChildren.filter(c => {
+                const fullNameKey = `${c.firstName.toLowerCase()}|${c.lastName.toLowerCase()}`;
+                return c.firstName && c.lastName && !existingNames.has(fullNameKey);
             });
-            newMaster[classId] = [...existingChildren, ...uniqueNewChildren];
+            if (uniqueNewChildren.length > 0) {
+              newMaster[classId] = [...existingChildren, ...uniqueNewChildren];
+            }
         });
         return newMaster;
     });
@@ -278,7 +311,7 @@ const App: React.FC = () => {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
       validChildren.forEach(child => {
-          doc.text(`- ${child.firstName} ${child.lastName}`, 25, yPosition);
+          doc.text(`- ${toProperCase(child.firstName)} ${toProperCase(child.lastName)}`, 25, yPosition);
           yPosition += 7;
       });
       yPosition += 5; 
@@ -363,7 +396,7 @@ const App: React.FC = () => {
                           <p className="font-semibold text-slate-700">{classInfo?.name}</p>
                            <ul className="list-disc list-inside pl-2 mt-1">
                               {validChildren.map(child => (
-                                <li key={child.id} className="text-indigo-600">{child.firstName} {child.lastName}</li>
+                                <li key={child.id} className="text-indigo-600">{toProperCase(child.firstName)} {toProperCase(child.lastName)}</li>
                               ))}
                           </ul>
                         </li>
@@ -425,7 +458,7 @@ const App: React.FC = () => {
                           onRegistrationChange={(children) => handleMasterRegistrationChange(classInfo.id, children)}
                           isReadOnly={false}
                           isClassInfoEditable={true}
-                          onClassInfoChange={handleClassInfoChange}
+                          onClassInfoChange={(field, value) => handleClassInfoChange(classInfo.id, field, value)}
                           onDelete={() => handleDeleteClass(classInfo.id)}
                         />
                       ))}

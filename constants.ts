@@ -27,40 +27,5 @@ export const BeakerIcon: ClassInfo['icon'] = (props) => (
     )
 );
 
-export const INITIAL_CLASSES: ClassInfo[] = [
-  {
-    id: 'c1',
-    name: 'Messy Munchkins Art',
-    description: 'A fun and messy art class where kids can explore their creativity with paint, clay, and more.',
-    ageRange: 'Ages 3-5',
-    period: '1st',
-    icon: PaintBrushIcon,
-  },
-  {
-    id: 'c2',
-    name: 'Musical Mayhem',
-    description: 'Explore different instruments, rhythms, and songs in this high-energy music class for little ones.',
-    ageRange: 'Ages 3-5',
-    period: '2nd',
-    icon: MusicNoteIcon,
-  },
-  {
-    id: 'c3',
-    name: 'Storybook Adventures',
-    description: 'Each week we dive into a new story with crafts, games, and activities related to the book.',
-    ageRange: 'K-2',
-    period: '1st',
-    icon: BookOpenIcon,
-  },
-  {
-    id: 'c4',
-    name: 'Junior Scientists',
-    description: 'Hands-on science experiments that are safe and fun. Get ready for fizzing potions and amazing discoveries!',
-    ageRange: 'K-2',
-    period: '3rd',
-    icon: BeakerIcon,
-  },
-];
-
 export const AGE_RANGE_OPTIONS = ["Pre-K", "K-2", "Grades 3-5", "Grades 6-8", "Grades 9-12"];
 export const PERIOD_OPTIONS: ClassInfo['period'][] = ["1st", "2nd", "3rd"];

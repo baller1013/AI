@@ -12,6 +12,12 @@ interface ClassCardProps {
     onDelete?: () => void;
 }
 
+const toProperCase = (str: string): string => {
+    return str.replace(/\w\S*/g, (txt) => {
+        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+};
+
 const ClassCard: React.FC<ClassCardProps> = ({ 
     classInfo, 
     registeredChildren, 
@@ -32,8 +38,9 @@ const ClassCard: React.FC<ClassCardProps> = ({
     };
 
     const handleChildNameChange = (index: number, field: 'firstName' | 'lastName', value: string) => {
+        const formattedValue = toProperCase(value);
         const newChildren = children.map((child, i) => 
-            i === index ? { ...child, [field]: value } : child
+            i === index ? { ...child, [field]: formattedValue } : child
         );
         setChildren(newChildren);
         onRegistrationChange(newChildren);
@@ -46,7 +53,7 @@ const ClassCard: React.FC<ClassCardProps> = ({
     };
 
     const handleFieldChange = (field: keyof Omit<ClassInfo, 'id' | 'icon'>, value: string) => {
-        if (onClassInfoChange) {
+        if (onClassInfochange) {
             onClassInfoChange(field, value);
         }
     };
@@ -77,8 +84,32 @@ const ClassCard: React.FC<ClassCardProps> = ({
                                 <h3 className="text-2xl font-bold text-slate-900 mb-1">{name}</h3>
                             )}
                             <div className="flex items-center flex-wrap gap-2 mb-3">
-                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">{ageRange}</span>
-                                <span className="px-3 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800">{period} Period</span>
+                                {isClassInfoEditable ? (
+                                    <select
+                                        value={ageRange}
+                                        onChange={(e) => handleFieldChange('ageRange', e.target.value)}
+                                        className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                    >
+                                        {AGE_RANGE_OPTIONS.map(option => (
+                                            <option key={option} value={option}>{option}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <span className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">{ageRange}</span>
+                                )}
+                                {isClassInfoEditable ? (
+                                    <select
+                                        value={period}
+                                        onChange={(e) => handleFieldChange('period', e.target.value)}
+                                        className="px-3 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800 border-2 border-transparent focus:border-indigo-500 outline-none"
+                                    >
+                                        {PERIOD_OPTIONS.map(option => (
+                                            <option key={option} value={option}>{option} Period</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <span className="px-3 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800">{period} Period</span>
+                                )}
                             </div>
                             {isClassInfoEditable ? (
                                 <textarea 
