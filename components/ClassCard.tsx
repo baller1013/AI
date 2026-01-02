@@ -53,7 +53,7 @@ const ClassCard: React.FC<ClassCardProps> = ({
     };
 
     const handleFieldChange = (field: keyof Omit<ClassInfo, 'id' | 'icon'>, value: string) => {
-        if (onClassInfochange) {
+        if (onClassInfoChange) {
             onClassInfoChange(field, value);
         }
     };
@@ -66,11 +66,11 @@ const ClassCard: React.FC<ClassCardProps> = ({
 
     return (
         <div key={id} className="bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl">
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="flex items-start justify-between">
                     <div className="flex-grow flex items-start">
                         <div className="mr-4 flex-shrink-0">
-                           {Icon && <Icon className="h-12 w-12 text-indigo-500" />} 
+                           {Icon && <Icon className="h-10 w-10 sm:h-12 sm:w-12 text-indigo-500" />} 
                         </div>
                         <div className="flex-grow">
                             {isClassInfoEditable ? (
@@ -78,10 +78,10 @@ const ClassCard: React.FC<ClassCardProps> = ({
                                     type="text" 
                                     value={name} 
                                     onChange={(e) => handleFieldChange('name', e.target.value)} 
-                                    className="text-xl font-bold text-slate-900 mb-1 w-full p-1 border-b-2 border-transparent focus:border-indigo-500 outline-none transition-colors"
+                                    className="text-xl sm:text-2xl font-bold text-slate-900 mb-1 w-full p-1 border-b-2 border-transparent focus:border-indigo-500 outline-none transition-colors"
                                 />
                             ) : (
-                                <h3 className="text-2xl font-bold text-slate-900 mb-1">{name}</h3>
+                                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">{name}</h3>
                             )}
                             <div className="flex items-center flex-wrap gap-2 mb-3">
                                 {isClassInfoEditable ? (
@@ -151,22 +151,22 @@ const ClassCard: React.FC<ClassCardProps> = ({
                         {children.length > 0 ? (
                             <div className="space-y-3">
                                 {children.map((child, index) => (
-                                    <div key={child.id} className="flex items-center gap-3">
+                                    <div key={child.id} className="flex flex-col sm:flex-row items-center gap-3">
                                         <input
                                             type="text"
                                             placeholder="First Name"
                                             value={child.firstName}
                                             onChange={(e) => handleChildNameChange(index, 'firstName', e.target.value)}
-                                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+                                            className="w-full flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
                                         />
                                         <input
                                             type="text"
                                             placeholder="Last Name"
                                             value={child.lastName}
                                             onChange={(e) => handleChildNameChange(index, 'lastName', e.target.value)}
-                                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+                                            className="w-full flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
                                         />
-                                        <button onClick={() => handleRemoveChild(index)} className="text-slate-400 hover:text-red-600 transition-colors">
+                                        <button onClick={() => handleRemoveChild(index)} className="text-slate-400 hover:text-red-600 transition-colors self-end sm:self-center">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                             </svg>
