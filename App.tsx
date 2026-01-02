@@ -193,21 +193,31 @@ const App: React.FC = () => {
 
   const handleDeleteClass = async (classId: string) => {
     const originalClasses = classes;
-    setClasses(prevClasses => prevClasses.filter(c => c.id !== classId));
+    const originalRegistrations = masterRegistrations;
+
+    // Optimistic UI update
+    setClasses(prev => prev.filter(c => c.id !== classId));
+    setMasterRegistrations(prev => {
+        const newMaster = { ...prev };
+        delete newMaster[classId];
+        return newMaster;
+    });
 
     try {
+        // Perform deletions
         await deleteDoc(doc(db, "classes", classId));
-        await deleteDoc(doc(db, "registrations", classId));
-        setMasterRegistrations(prev => {
-            const newMaster = { ...prev };
-            delete newMaster[classId];
-            return newMaster;
-        });
 
+        const registrationRef = doc(db, "registrations", classId);
+        const registrationSnap = await getDoc(registrationRef);
+        if (registrationSnap.exists()) {
+            await deleteDoc(registrationRef);
+        }
     } catch (error) {
         console.error("Error deleting class: ", error);
+        // Revert UI on error
         setClasses(originalClasses);
-        alert("Failed to delete the class. Please check your Firestore security rules and try again.");
+        setMasterRegistrations(originalRegistrations);
+        alert("Failed to delete the class. Please check your network connection and Firestore security rules, then try again.");
     }
   };
 
@@ -435,37 +445,14 @@ const App: React.FC = () => {
             {!isAdminAuthenticated ? (
               <AdminLogin onLoginSuccess={handleLoginSuccess} onGoBack={() => handleRoleChange('user')} />
             ) : (
-              <div>
-                <div className="mb-12">
-                    <div className="flex justify-between items-center mb-8">
-                        <div>
-                            <h1 className="text-3xl font-bold text-slate-900 mb-2">Edit Classes</h1>
-                            <p className="text-slate-600">Modify class details and registered children. Changes are saved automatically.</p>
-                        </div>
-                        <button
-                            onClick={handleAddNewClass}
-                            className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 whitespace-nowrap"
-                        >
-                            Add New Class
-                        </button>
-                    </div>
-                    <div className="space-y-6">
-                       {classes.map((classInfo) => (
-                        <ClassCard
-                          key={classInfo.id}
-                          classInfo={classInfo}
-                          registeredChildren={masterRegistrations[classInfo.id] || []}
-                          onRegistrationChange={(children) => handleMasterRegistrationChange(classInfo.id, children)}
-                          isReadOnly={false}
-                          isClassInfoEditable={true}
-                          onClassInfoChange={(field, value) => handleClassInfoChange(classInfo.id, field, value)}
-                          onDelete={() => handleDeleteClass(classInfo.id)}
-                        />
-                      ))}
-                    </div>
-                </div>
-                <AdminRosterView classes={classes} registrations={masterRegistrations} />
-              </div>
+                <AdminRosterView 
+                    classes={classes} 
+                    registrations={masterRegistrations}
+                    onRegistrationChange={handleMasterRegistrationChange}
+                    onClassInfoChange={handleClassInfoChange}
+                    onDeleteClass={handleDeleteClass}
+                    onAddNewClass={handleAddNewClass}
+                />
             )}
           </>
         )}

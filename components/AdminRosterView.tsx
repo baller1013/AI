@@ -2,13 +2,25 @@ import React from 'react';
 import type { ClassInfo, Child } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ClassCard from './ClassCard';
 
 interface AdminRosterViewProps {
   classes: ClassInfo[];
   registrations: Record<string, Child[]>;
+  onRegistrationChange: (classId: string, children: Child[]) => void;
+  onClassInfoChange: (classId: string, field: keyof Omit<ClassInfo, 'id' | 'icon'>, value: string) => void;
+  onDeleteClass: (classId: string) => void;
+  onAddNewClass: () => void;
 }
 
-const AdminRosterView: React.FC<AdminRosterViewProps> = ({ classes, registrations }) => {
+const AdminRosterView: React.FC<AdminRosterViewProps> = ({ 
+  classes, 
+  registrations,
+  onRegistrationChange,
+  onClassInfoChange,
+  onDeleteClass,
+  onAddNewClass
+}) => {
   const handleDownloadRostersPdf = () => {
     const doc = new jsPDF();
     
@@ -66,35 +78,38 @@ const AdminRosterView: React.FC<AdminRosterViewProps> = ({ classes, registration
             </svg>
             <h2 className="text-2xl font-bold text-slate-900">Class Rosters</h2>
         </div>
-        <button
-            onClick={handleDownloadRostersPdf}
-            className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center gap-2"
-        >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            <span>Download Rosters (PDF)</span>
-        </button>
+        <div className="flex items-center gap-4">
+            <button
+                onClick={onAddNewClass}
+                className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 whitespace-nowrap"
+            >
+                Add New Class
+            </button>
+            <button
+                onClick={handleDownloadRostersPdf}
+                className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200 flex items-center justify-center gap-2"
+            >
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                <span>Download Rosters (PDF)</span>
+            </button>
+        </div>
       </div>
       
       <div className="space-y-6">
-        {classes.map((classInfo) => {
-          const registeredChildren = registrations[classInfo.id]?.filter(c => c.firstName.trim() || c.lastName.trim()) || [];
-          return (
-            <div key={classInfo.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <h3 className="text-lg font-semibold text-indigo-800">{classInfo.name} ({registeredChildren.length} registered)</h3>
-              {registeredChildren.length > 0 ? (
-                <ul className="mt-2 list-disc list-inside text-slate-700 space-y-1">
-                  {registeredChildren.map((child) => (
-                    <li key={child.id}>{child.firstName} {child.lastName}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500 italic">No children registered for this class yet.</p>
-              )}
-            </div>
-          );
-        })}
+        {classes.map((classInfo) => (
+            <ClassCard
+                key={classInfo.id}
+                classInfo={classInfo}
+                registeredChildren={registrations[classInfo.id] || []}
+                onRegistrationChange={(children) => onRegistrationChange(classInfo.id, children)}
+                isReadOnly={false}
+                isClassInfoEditable={true}
+                onClassInfoChange={(field, value) => onClassInfoChange(classInfo.id, field, value)}
+                onDelete={() => onDeleteClass(classInfo.id)}
+            />
+        ))}
       </div>
     </div>
   );
