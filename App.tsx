@@ -178,11 +178,7 @@ const App: React.FC = () => {
     try {
         const docRef = await addDoc(collection(db, "classes"), newClassData);
         
-        setClasses(prevClasses => {
-            const updatedClasses = prevClasses.map(c => (c.id === tempId ? { ...c, id: docRef.id } : c));
-            updatedClasses.sort((a, b) => b.id.localeCompare(a.id));
-            return updatedClasses;
-        });
+        setClasses(prevClasses => prevClasses.map(c => (c.id === tempId ? { ...c, id: docRef.id } : c)));
 
     } catch (error) {
         console.error("Error adding new class: ", error);
