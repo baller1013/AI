@@ -5,7 +5,7 @@ interface AdminLoginProps {
   onGoBack: () => void;
 }
 
-const ADMIN_PASSWORD = 'admin123'; // Hardcoded password
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD; // Hardcoded password
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onGoBack }) => {
   const [password, setPassword] = useState('');
