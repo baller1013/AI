@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [alreadyRegisteredMessages, setAlreadyRegisteredMessages] = useState<string[]>([]);
   const [sortConfig, setSortConfig] = useState<{ key: keyof ClassInfo, direction: 'asc' | 'desc' }>({ key: 'ageRange', direction: 'asc' });
 
   useEffect(() => {
@@ -218,6 +219,8 @@ const App: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    const newAlreadyRegisteredMessages = [];
+
     for (const [classId, newChildren] of Object.entries(currentUserRegistrations)) {
         if (newChildren.some(c => c.firstName.trim() && c.lastName.trim())) {
             const registrationRef = doc(db, "registrations", classId);
@@ -231,10 +234,18 @@ const App: React.FC = () => {
                 lastName: toProperCase(child.lastName.trim())
             }));
 
-            const uniqueNewChildren = formattedChildren.filter(c => {
-                const fullNameKey = `${c.firstName.toLowerCase()}|${c.lastName.toLowerCase()}`;
-                return c.firstName && c.lastName && !existingNames.has(fullNameKey);
-            });
+            const uniqueNewChildren = [];
+            for (const child of formattedChildren) {
+                const fullNameKey = `${child.firstName.toLowerCase()}|${child.lastName.toLowerCase()}`;
+                if (child.firstName && child.lastName) {
+                    if (existingNames.has(fullNameKey)) {
+                        const classInfo = classes.find(c => c.id === classId);
+                        newAlreadyRegisteredMessages.push(`${child.firstName} ${child.lastName} is already registered for ${classInfo?.name}.`);
+                    } else {
+                        uniqueNewChildren.push(child);
+                    }
+                }
+            }
 
             if (uniqueNewChildren.length > 0) {
                 await setDoc(registrationRef, { children: [...existingChildren, ...uniqueNewChildren] }, { merge: true });
@@ -264,12 +275,13 @@ const App: React.FC = () => {
         });
         return newMaster;
     });
-
+    setAlreadyRegisteredMessages(newAlreadyRegisteredMessages);
     setIsSubmitted(true);
   };
 
   const handleStartNewRegistration = () => {
     setCurrentUserRegistrations({});
+    setAlreadyRegisteredMessages([]);
     setIsSubmitted(false);
   };
   
@@ -390,6 +402,14 @@ const App: React.FC = () => {
                 </svg>
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">Thank You!</h2>
                 <p className="text-slate-600 mb-6">Your registration has been submitted.</p>
+                {alreadyRegisteredMessages.length > 0 && (
+                    <div className="mb-4 text-red-600 font-semibold p-3 bg-red-50 rounded-lg text-left max-w-md mx-auto">
+                        <h3 className="font-bold text-lg mb-2">Registration Status</h3>
+                        {alreadyRegisteredMessages.map((message, index) => (
+                            <p key={index}>{message}</p>
+                        ))}
+                    </div>
+                )}
                 <div className="text-left bg-slate-50 p-6 rounded-lg border border-slate-200 mb-6 max-w-md mx-auto">
                   <h3 className="font-semibold text-lg text-slate-800 border-b pb-2 mb-4">Registration Summary</h3>
                   <ul className="space-y-4">
