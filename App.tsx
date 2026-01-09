@@ -353,47 +353,11 @@ const App: React.FC = () => {
         {role === 'user' && (
           <>
             {!isSubmitted ? (
-              <div>
-                <div className="flex justify-between items-center mb-8">
-                  <div>
-                      <h1 className="text-3xl font-bold text-slate-900 mb-2">Class Registration</h1>
-                      <p className="text-slate-600">Enter the name of your child or children for each class below.</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                        <span className="text-sm font-semibold text-slate-600">Sort by:</span>
-                        <button onClick={() => requestSort('ageRange')} className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm ${sortConfig.key === 'ageRange' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'} transition-colors`}>
-                            Age Group {sortConfig.key === 'ageRange' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                        </button>
-                        <button onClick={() => requestSort('period')} className={`px-4 py-2 text-sm font-semibold rounded-lg shadow-sm ${sortConfig.key === 'period' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'} transition-colors`}>
-                            Period {sortConfig.key === 'period' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                        </button>
-                    </div>
-                </div>
-                <div className="space-y-6">
-                  {sortedClasses.map((classInfo) => (
-                    <ClassCard
-                      key={classInfo.id}
-                      classInfo={classInfo}
-                      registeredChildren={currentUserRegistrations[classInfo.id] || []}
-                      onRegistrationChange={(children) => handleCurrentUserRegistrationChange(classInfo.id, children)}
-                      isReadOnly={false}
-                    />
-                  ))}
-                </div>
-                <div className="mt-8 text-right">
-                    {registrationError && (
-                        <div className="mb-4 text-red-600 font-semibold p-3 bg-red-50 rounded-lg text-center">
-                        {registrationError}
-                        </div>
-                    )}
-                  <button
-                    onClick={handleSubmit}
-                    disabled={activeUserRegistrations.length === 0 || !!registrationError}
-                    className="px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors duration-200"
-                  >
-                    Submit Registration
-                  </button>
-                </div>
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Registration Closed</h1>
+                <p className="text-slate-600">
+                  Commission Cooperation is no longer taking registrations for this session. Thank you for you continued support.
+                </p>
               </div>
             ) : (
               <div className="bg-white p-8 rounded-xl shadow-lg text-center">

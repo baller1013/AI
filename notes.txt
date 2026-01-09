@@ -2,5 +2,6 @@ npm run dev
 
 production
 npm run build
-firebase deploy --only hosting
 
+
+firebase deploy --only hosting --project commission-registration
