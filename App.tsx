@@ -356,7 +356,7 @@ const App: React.FC = () => {
               <div className="text-center">
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">Registration Closed</h1>
                 <p className="text-slate-600">
-                  Commission Cooperation is no longer taking registrations for this session. Thank you for you continued support.
+                  Commission Cooperation is no longer taking registrations for this session. Thank you for your continued support.
                 </p>
               </div>
             ) : (
